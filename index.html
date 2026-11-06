@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Drill Score">
+<meta name="theme-color" content="#000000">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<title>Drill Scoreboard</title>
+<style>
+:root{
+  --bg:#000;--panel:#111;--panel2:#1a1a1a;--line:#2c2c2c;--text:#fff;--muted:#9a9a9a;
+  --good:#2ee06f;--bad:#ff5252;--accent:#FFD400;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+html,body{height:100%;background:var(--bg);color:var(--text);overflow:hidden;overscroll-behavior:none}
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-text-size-adjust:100%}
+input{-webkit-user-select:text;user-select:text;font:inherit;color:inherit;outline:none}
+input:focus{border-color:#666 !important}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:disabled{opacity:.3;pointer-events:none}
+.screen{position:fixed;inset:0;display:none}
+.screen.on{display:flex}
+
+/* ---------- shared ---------- */
+.btn{min-height:64px;min-width:64px;padding:0 16px;border-radius:14px;background:var(--panel2);border:2px solid var(--line);
+  font-weight:800;font-size:18px;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn.sel{background:#fff;color:#000;border-color:#fff}
+.btn.primary{background:var(--accent);color:#000;border-color:var(--accent)}
+.btn.ghost{background:transparent}
+.btn.big{min-height:76px;font-size:24px;padding:0 36px;font-weight:900;letter-spacing:.02em}
+.hint{color:var(--muted);font-size:15px;font-weight:600}
+.tog{width:84px;height:64px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.tog i{width:60px;height:34px;border-radius:17px;background:#3a3a3a;position:relative;transition:background .15s}
+.tog i::after{content:'';position:absolute;top:4px;left:4px;width:26px;height:26px;border-radius:50%;background:#fff;transition:transform .15s}
+.tog.on i{background:var(--good)}
+.tog.on i::after{transform:translateX(26px)}
+
+/* ---------- setup ---------- */
+#setup{flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left)}
+#setup .scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 24px 28px}
+.app-h{display:flex;align-items:baseline;gap:14px;margin-bottom:16px}
+.app-h h1{font-size:30px;font-weight:900;letter-spacing:-.01em}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+@media (max-width:880px){.cols{grid-template-columns:1fr}}
+.panel{background:var(--panel);border-radius:18px;padding:18px;margin-bottom:20px}
+.panel h2{font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:800;margin-bottom:14px;
+  display:flex;justify-content:space-between;align-items:center;min-height:24px}
+.panel h2 .btn{min-height:48px;font-size:15px;letter-spacing:0;text-transform:none;color:#fff}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.seg .btn{flex:1 1 0;font-size:22px}
+.team{border-left:8px solid var(--c);background:var(--panel2);border-radius:14px;padding:14px;margin-top:14px;display:grid;gap:12px}
+.tname{height:64px;border-radius:12px;border:2px solid var(--line);background:#000;color:var(--c);font-size:26px;font-weight:900;
+  padding:0 16px;width:100%;text-transform:uppercase}
+.sws{display:flex;gap:6px}
+.sw{flex:1 1 0;min-width:0;max-width:72px;height:64px;border-radius:12px;background:var(--s);border:4px solid transparent}
+.sw.sel{border-color:#fff;box-shadow:inset 0 0 0 3px #000}
+.roster,.tpl{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:64px;padding:0 20px;border-radius:32px;background:#000;border:2px solid var(--line);font-size:19px;font-weight:700;
+  display:inline-flex;align-items:center;gap:10px}
+.chip.on{border-color:var(--c)}
+.chip .dot{width:14px;height:14px;border-radius:50%;background:var(--c);flex:none}
+.chip .x{color:var(--bad);font-size:24px;line-height:1;font-weight:900}
+.team .chip{border-color:var(--c)}
+.assign{margin:4px 0 14px}
+.assign .hint{display:block;margin-bottom:8px}
+.tsel{border-color:var(--c) !important;font-size:18px !important;text-transform:uppercase}
+.tsel.sel{background:var(--c) !important;color:#000 !important}
+.addrow{display:flex;gap:8px;margin-bottom:14px}
+.addrow input{flex:1;min-width:0;height:64px;border-radius:12px;border:2px solid var(--line);background:#000;font-size:18px;padding:0 16px}
+.row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.cat{display:grid;grid-template-columns:auto 1fr 64px 76px 64px;align-items:center;gap:8px;padding:4px 0;border-top:1px solid #222}
+.cat:first-of-type{border-top:0}
+.cat.off .cl,.cat.off .cv{opacity:.35}
+.cl{font-size:20px;font-weight:800;min-height:64px;display:flex;align-items:center;cursor:pointer}
+.cat .btn{font-size:30px;font-weight:900}
+.cv{text-align:center;font-size:28px;font-weight:900;font-variant-numeric:tabular-nums}
+.cv.pos{color:var(--good)}.cv.neg{color:var(--bad)}
+.durrow{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.dur{flex:1;text-align:center;font-size:52px;font-weight:900;font-variant-numeric:tabular-nums;min-width:120px}
+.durrow .btn{padding:0 10px;font-size:17px}
+.seg.wrap .btn{flex:1 1 64px;font-size:18px}
+.optrow{display:flex;align-items:center;gap:10px;text-align:left;font-size:18px;font-weight:700;min-height:64px;width:100%}
+.prow{display:flex;gap:8px;margin-top:8px}
+.pload{flex:1;justify-content:space-between;font-size:19px}
+.sfoot{display:flex;align-items:center;gap:16px;padding:12px 24px calc(12px + env(safe-area-inset-bottom));background:#0a0a0a;border-top:1px solid #222}
+.sfoot .sum{flex:1;color:var(--muted);font-weight:700;font-size:17px}
+
+/* ---------- scoring ---------- */
+#score{flex-direction:column;gap:1.4vh;
+  padding:max(1.4vh,env(safe-area-inset-top)) max(1.4vw,env(safe-area-inset-right)) max(1.4vh,env(safe-area-inset-bottom)) max(1.4vw,env(safe-area-inset-left))}
+.top{display:flex;align-items:stretch;gap:1.2vw;height:17vh;min-height:76px;flex:none}
+.tbtn{min-width:64px;padding:0 2.2vw;border-radius:1.8vh;font-weight:900;font-size:max(18px,3.4vh);background:#151515;border:3px solid #333;letter-spacing:.03em}
+.tbtn:active{transform:scale(.97)}
+.tbtn.undo{border-color:var(--accent);color:var(--accent);min-width:15vw}
+.tbtn.go{border-color:var(--good);color:var(--good);min-width:14vw}
+.tbtn.go.pause{border-color:#fff;color:#fff}
+.tbtn.end{border-color:#555;color:#ccc}
+.clock{flex:1;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:min(16vh,11vw);line-height:1;
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em;border-radius:1.8vh;background:#0b0b0b}
+.clock.paused{color:#bdbdbd}
+.clock.low{color:var(--accent)}
+.clock.time{color:#fff;background:#d50000;animation:blink .55s steps(1) infinite}
+@keyframes blink{50%{background:#000;color:#ff3b30}}
+.cards{flex:1;display:grid;gap:1.4vw;min-height:0}
+.cards.n1{grid-template-columns:1fr}
+.cards.n2{grid-template-columns:1fr 1fr}
+.cards.n3,.cards.n4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+@media (orientation:portrait){.cards.n2{grid-template-columns:1fr;grid-template-rows:1fr 1fr}}
+.card{container-type:size;position:relative;background:#0c0c0c;border-radius:2.2vh;border:1vh solid #262626;display:flex;flex-direction:column;
+  padding:1.6vh 2vw;overflow:hidden;min-height:0;transition:border-color .15s,box-shadow .15s}
+.card::before{content:'';position:absolute;inset:0;background:var(--c);opacity:.07;pointer-events:none;transition:opacity .15s}
+.card > *{position:relative}
+.card .name,.card .players,.card .sc{transition:opacity .15s}
+.card .name{opacity:.8}.card .players{opacity:.6}.card .sc{opacity:.72}
+.card.active{border-color:var(--c);box-shadow:0 0 4vh var(--c)}
+.card.active::before{opacity:.16}
+.card.active .name,.card.active .players,.card.active .sc{opacity:1}
+.name{font-weight:900;color:var(--c);font-size:4vh;font-size:min(15cqh,8cqw);line-height:1.05;text-transform:uppercase;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.01em}
+.players{color:#c8c8c8;font-weight:600;font-size:2vh;font-size:min(6.5cqh,3.2cqw);line-height:1.25;margin-top:.4vh;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sc{flex:1;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20vh;font-size:min(64cqh,54cqw);
+  line-height:.9;font-variant-numeric:tabular-nums;letter-spacing:-.03em;min-height:0}
+.sc.long{font-size:min(64cqh,36cqw)}
+.sc.pulse{animation:pulse .45s ease-out}
+.sc.pulse-neg{animation:pulseNeg .45s ease-out}
+@keyframes pulse{0%{transform:scale(1)}30%{transform:scale(1.13);color:var(--good)}100%{transform:scale(1)}}
+@keyframes pulseNeg{0%{transform:scale(1)}30%{transform:scale(.9);color:var(--bad)}100%{transform:scale(1)}}
+.flash{position:absolute !important;right:4cqw;top:6cqh;font-weight:900;font-size:10vh;font-size:min(32cqh,22cqw);line-height:1;
+  pointer-events:none;animation:rise 1s ease-out forwards;text-shadow:0 0 3vh #000}
+.flash.pos{color:var(--good)}.flash.neg{color:var(--bad)}.flash.undo{color:var(--accent)}
+@keyframes rise{0%{opacity:0;transform:translateY(20%) scale(.7)}15%{opacity:1;transform:translateY(0) scale(1.05)}70%{opacity:1}100%{opacity:0;transform:translateY(-40%)}}
+.actions{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:1vw;height:19vh;min-height:72px;flex:none}
+@media (orientation:portrait){.actions{grid-template-columns:repeat(var(--n2),1fr);height:22vh;min-height:140px}}
+.act{border-radius:1.8vh;background:#141414;border:3px solid var(--c,#444);display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:.5vh;min-width:0;padding:0 .4vw;transition:border-color .15s}
+.act:active{transform:scale(.95);background:#262626}
+.act .pts{font-size:min(6vh,5vw);font-weight:900;line-height:1;font-variant-numeric:tabular-nums}
+.act .lbl{font-size:max(12px,min(2.4vh,1.35vw));font-weight:800;text-transform:uppercase;text-align:center;line-height:1.05;letter-spacing:.02em}
+.act.pos .pts{color:var(--good)}.act.neg .pts{color:var(--bad)}
+.act.hit{animation:hit .35s ease-out}
+@keyframes hit{0%{background:var(--c)}100%{background:#141414}}
+
+/* ---------- summary ---------- */
+#summary{flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:max(3vh,env(safe-area-inset-top)) max(3vw,env(safe-area-inset-right)) max(3vh,env(safe-area-inset-bottom)) max(3vw,env(safe-area-inset-left))}
+.win{font-size:min(9vh,7vw);font-weight:900;text-align:center;text-transform:uppercase;letter-spacing:.01em;margin-bottom:2.5vh;line-height:1.05}
+.ranks{display:flex;gap:1.5vw;justify-content:center;flex-wrap:wrap;margin-bottom:3vh}
+.rank{flex:1 1 0;max-width:420px;min-width:180px;background:#0f0f0f;border-radius:2vh;border-top:1.2vh solid var(--c);padding:2vh 2vw;text-align:center}
+.rank .pl{color:var(--muted);font-weight:900;font-size:2.6vh;letter-spacing:.1em}
+.rank .nm{color:var(--c);font-weight:900;font-size:4vh;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rank .s{font-weight:900;font-size:13vh;line-height:1;font-variant-numeric:tabular-nums}
+table.tally{width:100%;max-width:1100px;margin:0 auto 3vh;border-collapse:collapse;font-size:max(17px,2.6vh);font-variant-numeric:tabular-nums}
+.tally th,.tally td{padding:1vh 1.2vw;text-align:center;border-bottom:1px solid #222}
+.tally th{font-weight:900;text-transform:uppercase;color:var(--c,#fff)}
+.tally td:first-child,.tally th:first-child{text-align:left;font-weight:800;color:#ddd}
+.tally td.z{color:#444}
+.tally tr.tot td{font-weight:900;font-size:1.2em;border-bottom:0;border-top:2px solid #444}
+.tally .pp{color:var(--muted);font-weight:700;font-size:.8em;margin-left:.4em}
+.sumbtns{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;padding-bottom:2vh}
+
+/* ---------- modal / toast ---------- */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:50;padding:24px}
+#modal.on{display:flex}
+.mbox{background:#161616;border:2px solid #333;border-radius:22px;padding:32px;max-width:640px;width:100%;text-align:center}
+.mbox p{font-size:28px;font-weight:800;margin-bottom:28px;line-height:1.25}
+.mbox .row{justify-content:center;gap:14px}
+.mbox .btn{min-width:180px;font-size:22px}
+#toast{position:fixed;left:50%;bottom:24vh;transform:translateX(-50%);background:#fff;color:#000;font-weight:900;font-size:max(18px,2.8vh);
+  padding:1.6vh 3vw;border-radius:99px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:60;white-space:nowrap}
+#toast.on{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<section id="setup" class="screen">
+  <div class="scroll"><div class="app-h"><h1>Drill Scoreboard</h1><span class="hint">Setup</span></div><div id="setupBody"></div></div>
+  <footer class="sfoot"><div class="sum" id="setupSum"></div><button class="btn primary big" data-a="start">START DRILL ▶</button></footer>
+</section>
+
+<!-- SCORING -->
+<section id="score" class="screen">
+  <div class="top">
+    <button class="tbtn undo" data-a="undo" id="undoBtn">↶ UNDO</button>
+    <div class="clock" id="clock">0:00</div>
+    <button class="tbtn go" data-a="clock-toggle" id="goBtn">START</button>
+    <button class="tbtn" data-a="clock-reset" id="resetBtn">RESET</button>
+    <button class="tbtn end" data-a="end">END</button>
+  </div>
+  <div class="cards" id="cards"></div>
+  <div class="actions" id="actions"></div>
+</section>
+
+<!-- SUMMARY -->
+<section id="summary" class="screen"><div id="summaryBody"></div></section>
+
+<div id="modal"><div class="mbox"><p id="mText"></p><div class="row">
+  <button class="btn" data-a="m-cancel">Cancel</button><button class="btn primary" data-a="m-ok" id="mOk">OK</button>
+</div></div></div>
+<div id="toast"></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= utilities ================= */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const fmtTime = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+const fmtPts = p => p > 0 ? '+' + p : p < 0 ? '−' + Math.abs(p) : '0';
+const K = {roster:'dsb.roster.v1', setup:'dsb.setup.v1', presets:'dsb.presets.v1', drill:'dsb.drill.v1'};
+const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
+const save = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+
+/* ================= defaults ================= */
+const PALETTE = [['Red','#E53935'],['Blue','#1E88E5'],['Gold','#FDD835'],['Green','#43A047'],['Orange','#FB8C00'],['Purple','#A855F7'],['White','#F2F2F2']];
+const CATS = [
+  {id:'stop',  label:'Stop',            short:'Stop',        pts:1},
+  {id:'p2',    label:'2PT',             short:'2PT',         pts:2},
+  {id:'p3',    label:'3PT',             short:'3PT',         pts:3},
+  {id:'foul',  label:'Foul',            short:'Foul',        pts:-1},
+  {id:'dreb',  label:'Def Reb',         short:'Def Reb',     pts:1},
+  {id:'oreb',  label:'Off Reb',         short:'Off Reb',     pts:2},
+  {id:'to',    label:'Turnover',        short:'Turnover',    pts:-2},
+  {id:'fto',   label:'Forced Turnover', short:'Forced TO',   pts:2},
+  {id:'defl',  label:'Deflection',      short:'Deflection',  pts:1},
+  {id:'paint', label:'Paint Touch',     short:'Paint Touch', pts:1},
+];
+const catInfo = id => CATS.find(c => c.id === id);
+
+function defaultSetup() {
+  return {
+    numTeams: 2,
+    teams: PALETTE.slice(0, 4).map(([n, c]) => ({name: n, color: c, players: []})),
+    cats: CATS.map(c => ({id: c.id, pts: c.pts, on: true})),
+    duration: 300,
+    ftLink: false,
+  };
+}
+function normCats(list) {
+  list = Array.isArray(list) ? list : [];
+  return CATS.map(c => {
+    const x = list.find(y => y && y.id === c.id);
+    return {id: c.id, pts: x && Number.isFinite(+x.pts) ? clamp(Math.round(+x.pts), -10, 10) : c.pts, on: x ? !!x.on : true};
+  });
+}
+function normSetup(s) {
+  const d = defaultSetup();
+  if (!s || typeof s !== 'object') return d;
+  return {
+    numTeams: clamp(Math.round(+s.numTeams) || 2, 1, 4),
+    teams: d.teams.map((t, i) => {
+      const x = (Array.isArray(s.teams) && s.teams[i]) || {};
+      return {
+        name: typeof x.name === 'string' ? x.name : t.name,
+        color: PALETTE.some(p => p[1] === x.color) ? x.color : t.color,
+        players: Array.isArray(x.players) ? x.players.filter(p => typeof p === 'string') : [],
+      };
+    }),
+    cats: normCats(s.cats),
+    duration: clamp(Math.round(+s.duration) || 300, 5, 5999),
+    ftLink: !!s.ftLink,
+  };
+}
+
+/* ================= state ================= */
+let roster  = load(K.roster, []);  if (!Array.isArray(roster)) roster = [];
+roster = roster.filter(p => typeof p === 'string');
+let setup   = normSetup(load(K.setup, null));
+let presets = load(K.presets, []); if (!Array.isArray(presets)) presets = [];
+let drill   = load(K.drill, null);
+if (drill && (!Array.isArray(drill.teams) || !Array.isArray(drill.log))) drill = null;
+
+let assignTeam = 0, editRoster = false, rosterDraft = '', presetDraft = '';
+let screen = null;
+
+// drop team assignments for players no longer in roster
+setup.teams.forEach(t => t.players = t.players.filter(p => roster.includes(p)));
+
+const saveSetup = () => save(K.setup, setup);
+const saveRoster = () => save(K.roster, roster);
+const savePresets = () => save(K.presets, presets);
+const saveDrill = () => save(K.drill, drill);
+
+/* ================= screens ================= */
+function show(name) {
+  screen = name;
+  $('#toast').classList.remove('on');
+  document.querySelectorAll('.screen').forEach(el => el.classList.toggle('on', el.id === name));
+  if (name === 'setup') renderSetup();
+  if (name === 'score') { renderScoring(); keepAwake(); }
+  if (name === 'summary') renderSummary();
+}
+
+/* ================= SETUP ================= */
+function renderSetup() {
+  const S = setup, n = S.numTeams, teams = S.teams.slice(0, n);
+  if (assignTeam >= n) assignTeam = 0;
+  const owner = {};
+  teams.forEach((t, i) => t.players.forEach(p => { if (owner[p] == null) owner[p] = i; }));
+  const tName = (t, i) => esc(t.name.trim() || 'Team ' + (i + 1));
+  let h = '<div class="cols"><div>';
+
+  // Teams
+  h += `<section class="panel"><h2>Teams</h2><div class="seg">${[1,2,3,4].map(k =>
+        `<button class="btn ${k === n ? 'sel' : ''}" data-a="nteams" data-v="${k}">${k}</button>`).join('')}</div>`;
+  teams.forEach((t, i) => {
+    h += `<div class="team" style="--c:${t.color}">
+      <input class="tname" data-i="${i}" value="${esc(t.name)}" maxlength="14" placeholder="Team ${i + 1}" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done">
+      <div class="sws">${PALETTE.map(([nm, c]) => `<button class="sw ${c === t.color ? 'sel' : ''}" style="--s:${c}" data-a="color" data-i="${i}" data-v="${c}" aria-label="${nm}"></button>`).join('')}</div>
+      <div class="tpl">${t.players.length
+        ? t.players.map(p => `<button class="chip" data-a="unassign" data-i="${i}" data-v="${esc(p)}">${esc(p)} <span class="x">×</span></button>`).join('')
+        : '<span class="hint">No players — tap names in the roster below.</span>'}</div>
+    </div>`;
+  });
+  h += '</section>';
+
+  // Roster
+  h += `<section class="panel"><h2>Roster <button class="btn ${editRoster ? 'sel' : 'ghost'}" data-a="roster-edit">${editRoster ? 'Done' : 'Edit / Delete'}</button></h2>
+    <div class="addrow"><input id="rosterIn" value="${esc(rosterDraft)}" placeholder="Add players (comma-separated)" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="done"><button class="btn" data-a="roster-add">Add</button></div>`;
+  if (!editRoster && roster.length) {
+    h += `<div class="assign"><span class="hint">Tap a player to put them on:</span><div class="seg">${teams.map((t, i) =>
+      `<button class="btn tsel ${i === assignTeam ? 'sel' : ''}" style="--c:${t.color}" data-a="assign-to" data-v="${i}">${tName(t, i)}</button>`).join('')}</div></div>`;
+  }
+  h += `<div class="roster">${roster.length ? roster.map(p => {
+      const o = owner[p];
+      const style = o != null ? `style="--c:${S.teams[o].color}"` : '';
+      return `<button class="chip ${o != null ? 'on' : ''}" ${style} data-a="${editRoster ? 'roster-del' : 'player'}" data-v="${esc(p)}">${o != null ? '<i class="dot"></i>' : ''}${esc(p)}${editRoster ? ' <span class="x">×</span>' : ''}</button>`;
+    }).join('') : '<span class="hint">No saved players yet. Add them once — they stay saved on this iPad.</span>'}</div>`;
+  if (roster.length && !editRoster) h += `<div class="row"><button class="btn ghost" data-a="clear-assign">Clear all assignments</button></div>`;
+  h += '</section></div><div>';
+
+  // Categories
+  const onCount = S.cats.filter(c => c.on).length;
+  h += `<section class="panel"><h2>Scoring <span class="hint">${onCount} of ${S.cats.length} on</span></h2>${S.cats.map(c => {
+    const ci = catInfo(c.id);
+    return `<div class="cat ${c.on ? '' : 'off'}">
+      <button class="tog ${c.on ? 'on' : ''}" data-a="cat-tog" data-v="${c.id}" aria-label="Toggle ${ci.label}"><i></i></button>
+      <span class="cl" data-a="cat-tog" data-v="${c.id}">${ci.label}</span>
+      <button class="btn" data-a="cat-pts" data-v="${c.id}" data-d="-1">−</button>
+      <span class="cv ${c.pts > 0 ? 'pos' : c.pts < 0 ? 'neg' : ''}">${fmtPts(c.pts)}</span>
+      <button class="btn" data-a="cat-pts" data-v="${c.id}" data-d="1">+</button>
+    </div>`;
+  }).join('')}</section>`;
+
+  // Clock
+  h += `<section class="panel"><h2>Drill Clock</h2>
+    <div class="durrow"><button class="btn" data-a="dur" data-v="-60">−1:00</button><button class="btn" data-a="dur" data-v="-15">−:15</button>
+    <div class="dur">${fmtTime(S.duration)}</div>
+    <button class="btn" data-a="dur" data-v="15">+:15</button><button class="btn" data-a="dur" data-v="60">+1:00</button></div>
+    <div class="seg wrap">${[60,120,180,240,300,480,600].map(s => `<button class="btn ${S.duration === s ? 'sel' : ''}" data-a="dur-set" data-v="${s}">${s / 60}:00</button>`).join('')}</div>
+  </section>`;
+
+  // 2-team option
+  if (n === 2) {
+    h += `<section class="panel"><h2>Options</h2><button class="optrow" data-a="ftlink"><span class="tog ${S.ftLink ? 'on' : ''}"><i></i></span>
+      <span>Forced Turnover also logs a Turnover on the other team</span></button></section>`;
+  }
+
+  // Presets
+  h += `<section class="panel"><h2>Drill Presets</h2>
+    <div class="addrow"><input id="presetIn" value="${esc(presetDraft)}" maxlength="30" placeholder="Preset name (e.g. 3v3 Shell)" autocomplete="off" spellcheck="false" enterkeyhint="done"><button class="btn" data-a="preset-save">Save</button></div>
+    <span class="hint">Saves enabled categories, point values, clock${n === 2 ? ', and the turnover option' : ''}.</span>
+    ${presets.length ? presets.map((p, i) => `<div class="prow"><button class="btn pload" data-a="preset-load" data-v="${i}"><span>${esc(p.name)}</span><span class="hint">${fmtTime(p.duration)} · ${p.cats.filter(c => c.on).length} cats</span></button><button class="btn ghost" data-a="preset-del" data-v="${i}" aria-label="Delete preset">✕</button></div>`).join('')
+      : ''}
+  </section>`;
+
+  h += '</div></div>';
+  $('#setupBody').innerHTML = h;
+  $('#setupSum').textContent = `${n} team${n > 1 ? 's' : ''} · ${onCount} categories · ${fmtTime(S.duration)}` + (n === 2 && S.ftLink ? ' · Forced TO ↔ TO linked' : '');
+}
+
+function addRosterNames(raw) {
+  const names = raw.split(',').map(s => s.trim().replace(/\s+/g, ' ')).filter(Boolean);
+  let added = 0;
+  names.forEach(nm => {
+    if (!roster.some(r => r.toLowerCase() === nm.toLowerCase())) { roster.push(nm.slice(0, 24)); added++; }
+  });
+  roster.sort((a, b) => a.localeCompare(b));
+  saveRoster();
+  return added;
+}
+
+function setupAction(a, el) {
+  const S = setup, v = el.dataset.v;
+  switch (a) {
+    case 'nteams': S.numTeams = +v; break;
+    case 'color': S.teams[+el.dataset.i].color = v; break;
+    case 'assign-to': assignTeam = +v; break;
+    case 'player': {
+      const team = S.teams[assignTeam];
+      const already = team.players.includes(v);
+      S.teams.forEach(t => t.players = t.players.filter(p => p !== v));
+      if (!already) team.players.push(v);
+      break;
+    }
+    case 'unassign': S.teams[+el.dataset.i].players = S.teams[+el.dataset.i].players.filter(p => p !== v); break;
+    case 'clear-assign': S.teams.forEach(t => t.players = []); break;
+    case 'roster-add': {
+      const inp = $('#rosterIn');
+      if (inp && inp.value.trim()) { addRosterNames(inp.value); rosterDraft = ''; }
+      break;
+    }
+    case 'roster-edit': editRoster = !editRoster; break;
+    case 'roster-del':
+      confirmBox(`Delete <b>${esc(v)}</b> from the saved roster?`, 'Delete', () => {
+        roster = roster.filter(p => p !== v);
+        S.teams.forEach(t => t.players = t.players.filter(p => p !== v));
+        saveRoster(); saveSetup(); renderSetup();
+      });
+      return;
+    case 'cat-tog': { const c = S.cats.find(c => c.id === v); c.on = !c.on; break; }
+    case 'cat-pts': { const c = S.cats.find(c => c.id === v); c.pts = clamp(c.pts + (+el.dataset.d), -10, 10); break; }
+    case 'dur': S.duration = clamp(S.duration + (+v), 5, 5999); break;
+    case 'dur-set': S.duration = +v; break;
+    case 'ftlink': S.ftLink = !S.ftLink; break;
+    case 'preset-save': {
+      const name = ($('#presetIn').value || '').trim();
+      if (!name) { toast('Name the preset first'); $('#presetIn').focus(); return; }
+      const p = {name, cats: S.cats.map(c => ({...c})), duration: S.duration, ftLink: S.ftLink};
+      const idx = presets.findIndex(x => x.name.toLowerCase() === name.toLowerCase());
+      if (idx >= 0) presets[idx] = p; else presets.push(p);
+      presets.sort((a, b) => a.name.localeCompare(b.name));
+      savePresets(); presetDraft = '';
+      toast(idx >= 0 ? `Updated “${name}”` : `Saved “${name}”`);
+      break;
+    }
+    case 'preset-load': {
+      const p = presets[+v]; if (!p) return;
+      S.cats = normCats(p.cats); S.duration = clamp(+p.duration || 300, 5, 5999); S.ftLink = !!p.ftLink;
+      presetDraft = p.name;
+      toast(`Loaded “${p.name}”`);
+      break;
+    }
+    case 'preset-del': {
+      const p = presets[+v]; if (!p) return;
+      confirmBox(`Delete preset <b>${esc(p.name)}</b>?`, 'Delete', () => { presets.splice(+v, 1); savePresets(); renderSetup(); });
+      return;
+    }
+    case 'start': startDrill(); return;
+    default: return;
+  }
+  saveSetup();
+  renderSetup();
+}
+
+/* ================= DRILL ================= */
+function newDrill(src) {
+  return {
+    teams: src.teams.map(t => ({name: t.name, color: t.color, players: [...t.players]})),
+    cats: src.cats.map(c => ({id: c.id, pts: c.pts, on: c.on, label: catInfo(c.id).label, short: catInfo(c.id).short})),
+    duration: src.duration, ms: src.duration * 1000, endAt: null, running: false,
+    ftLink: src.teams.length === 2 && !!src.ftLink,
+    active: 0, log: [], g: 0, ended: false,
+  };
+}
+function startDrill() {
+  const S = setup;
+  if (!S.cats.some(c => c.on)) { toast('Turn on at least one scoring category'); return; }
+  const teams = S.teams.slice(0, S.numTeams).map((t, i) => ({
+    name: t.name.trim() || 'Team ' + (i + 1), color: t.color, players: t.players.filter(p => roster.includes(p)),
+  }));
+  drill = newDrill({teams, cats: S.cats, duration: S.duration, ftLink: S.ftLink});
+  saveDrill();
+  show('score');
+}
+
+const score = i => drill.log.reduce((s, e) => s + (e.t === i ? e.p : 0), 0);
+const curMs = () => drill.running ? Math.max(0, drill.endAt - Date.now()) : drill.ms;
+
+function renderScoring() {
+  const d = drill, n = d.teams.length;
+  if (d.active >= n) d.active = 0;
+  const cards = $('#cards');
+  cards.className = 'cards n' + n;
+  cards.innerHTML = d.teams.map((t, i) => `<div class="card" data-a="card" data-v="${i}" style="--c:${t.color}">
+      <div class="name">${esc(t.name)}</div><div class="players">${esc(t.players.join(' · '))}</div>
+      <div class="sc"><span class="num">0</span></div></div>`).join('');
+  const acts = d.cats.filter(c => c.on);
+  const A = $('#actions');
+  A.style.setProperty('--n', acts.length);
+  A.style.setProperty('--n2', Math.ceil(acts.length / 2));
+  A.innerHTML = acts.map(c => `<button class="act ${c.pts < 0 ? 'neg' : 'pos'}" data-a="act" data-v="${c.id}">
+      <span class="pts">${fmtPts(c.pts)}</span><span class="lbl">${esc(c.short)}</span></button>`).join('');
+  updateScores(); updateActive(); updateClock(true); updateUndo();
+}
+function updateScores() {
+  [...$('#cards').children].forEach((card, i) => {
+    const v = String(score(i));
+    card.querySelector('.num').textContent = v;
+    card.querySelector('.sc').classList.toggle('long', v.length >= 3);
+  });
+}
+function updateActive() {
+  const d = drill;
+  [...$('#cards').children].forEach((card, i) => card.classList.toggle('active', i === d.active));
+  $('#actions').style.setProperty('--c', d.teams[d.active].color);
+}
+function updateUndo() { $('#undoBtn').disabled = !drill.log.length; }
+
+let lastClock = '';
+function updateClock(force) {
+  if (!drill || screen !== 'score') return;
+  const ms = curMs(), el = $('#clock');
+  const up = ms <= 0;
+  const txt = up ? 'TIME' : fmtTime(Math.ceil(ms / 1000));
+  const cls = 'clock' + (up ? ' time' : !drill.running ? ' paused' : ms <= 10000 ? ' low' : '');
+  const key = txt + cls + drill.running;
+  if (!force && key === lastClock) return;
+  lastClock = key;
+  el.textContent = txt; el.className = cls;
+  const go = $('#goBtn');
+  go.textContent = drill.running ? 'PAUSE' : (ms < drill.duration * 1000 && !up ? 'RESUME' : 'START');
+  go.classList.toggle('pause', drill.running);
+  go.disabled = up;
+  $('#resetBtn').disabled = drill.running || ms === drill.duration * 1000;
+}
+
+function fx(t, p, kind) {
+  const card = $('#cards').children[t];
+  if (!card) return;
+  const sc = card.querySelector('.sc');
+  sc.classList.remove('pulse', 'pulse-neg'); void sc.offsetWidth;
+  sc.classList.add(p < 0 ? 'pulse-neg' : 'pulse');
+  const f = document.createElement('div');
+  f.className = 'flash ' + (kind || (p < 0 ? 'neg' : 'pos'));
+  f.textContent = kind === 'undo' ? 'UNDO' : fmtPts(p);
+  card.appendChild(f);
+  setTimeout(() => f.remove(), 1000);
+}
+
+function scoreAction(a, el) {
+  const d = drill;
+  switch (a) {
+    case 'card': {
+      const i = +el.dataset.v;
+      if (i !== d.active) { d.active = i; saveDrill(); updateActive(); }
+      return;
+    }
+    case 'act': {
+      const cat = d.cats.find(c => c.id === el.dataset.v); if (!cat) return;
+      const g = ++d.g, t = d.active;
+      const evs = [{g, t, c: cat.id, p: cat.pts}];
+      if (cat.id === 'fto' && d.ftLink && d.teams.length === 2) {
+        const to = d.cats.find(c => c.id === 'to');
+        evs.push({g, t: 1 - t, c: 'to', p: to.pts});
+      }
+      d.log.push(...evs);
+      saveDrill();
+      evs.forEach(e => fx(e.t, e.p));
+      el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit');
+      updateScores(); updateUndo();
+      return;
+    }
+    case 'undo': {
+      if (!d.log.length) return;
+      const g = d.log[d.log.length - 1].g;
+      const removed = d.log.filter(e => e.g === g);
+      d.log = d.log.filter(e => e.g !== g);
+      saveDrill();
+      updateScores(); updateUndo();
+      removed.forEach(e => fx(e.t, -e.p, 'undo'));
+      const e0 = removed[0], c0 = d.cats.find(c => c.id === e0.c);
+      toast(`Undid ${c0 ? c0.short : e0.c} (${fmtPts(e0.p)}) · ${d.teams[e0.t].name}` + (removed.length > 1 ? ' + linked TO' : ''));
+      return;
+    }
+    case 'clock-toggle':
+      if (d.running) { d.ms = curMs(); d.running = false; d.endAt = null; }
+      else { if (d.ms <= 0) return; d.endAt = Date.now() + d.ms; d.running = true; }
+      saveDrill(); updateClock(true); return;
+    case 'clock-reset':
+      if (d.running) return;
+      d.ms = d.duration * 1000; saveDrill(); updateClock(true); return;
+    case 'end':
+      confirmBox('End this drill and show the results?', 'End Drill', () => {
+        if (d.running) { d.ms = curMs(); d.running = false; d.endAt = null; }
+        d.ended = true; saveDrill(); show('summary');
+      });
+      return;
+  }
+}
+
+/* ================= SUMMARY ================= */
+function renderSummary() {
+  const d = drill, n = d.teams.length;
+  const sc = d.teams.map((t, i) => ({t, i, s: score(i)}));
+  const ranked = [...sc].sort((a, b) => b.s - a.s || a.i - b.i);
+  let head;
+  if (n === 1) head = `<div class="win">Final Score</div>`;
+  else {
+    const top = ranked.filter(r => r.s === ranked[0].s);
+    head = top.length > 1
+      ? `<div class="win">Tie — ${top.map(r => `<span style="color:${r.t.color}">${esc(r.t.name)}</span>`).join(' &amp; ')}</div>`
+      : `<div class="win"><span style="color:${ranked[0].t.color}">${esc(ranked[0].t.name)}</span> Wins</div>`;
+  }
+  const ord = ['1ST', '2ND', '3RD', '4TH'];
+  let h = head + `<div class="ranks">${ranked.map(r => {
+    const place = 1 + sc.filter(x => x.s > r.s).length;
+    return `<div class="rank" style="--c:${r.t.color}">${n > 1 ? `<div class="pl">${ord[place - 1]}</div>` : ''}<div class="nm">${esc(r.t.name)}</div><div class="s">${r.s}</div></div>`;
+  }).join('')}</div>`;
+
+  const used = d.cats.filter(c => c.on || d.log.some(e => e.c === c.id));
+  h += `<table class="tally"><thead><tr><th>Category</th>${ranked.map(r => `<th style="--c:${r.t.color}">${esc(r.t.name)}</th>`).join('')}</tr></thead><tbody>`;
+  used.forEach(c => {
+    h += `<tr><td>${esc(c.label)}<span class="pp">${fmtPts(c.pts)}</span></td>${ranked.map(r => {
+      const k = d.log.filter(e => e.t === r.i && e.c === c.id).length;
+      return `<td class="${k ? '' : 'z'}">${k}</td>`;
+    }).join('')}</tr>`;
+  });
+  h += `<tr class="tot"><td>Total</td>${ranked.map(r => `<td>${r.s}</td>`).join('')}</tr></tbody></table>`;
+  h += `<div class="sumbtns"><button class="btn" data-a="resume">↶ Back to Drill</button>
+    <button class="btn primary big" data-a="again">RUN IT AGAIN</button>
+    <button class="btn big" data-a="to-setup">SETUP</button></div>`;
+  $('#summaryBody').innerHTML = h;
+}
+function summaryAction(a) {
+  if (a === 'resume') { drill.ended = false; saveDrill(); show('score'); }
+  if (a === 'again') { drill = newDrill(drill); saveDrill(); show('score'); }
+  if (a === 'to-setup') { drill = null; saveDrill(); show('setup'); }
+}
+
+/* ================= modal / toast ================= */
+let modalCb = null;
+function confirmBox(html, okLabel, cb) {
+  $('#mText').innerHTML = html; $('#mOk').textContent = okLabel || 'OK';
+  modalCb = cb; $('#modal').classList.add('on');
+}
+let toastT;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 1800);
+}
+
+/* ================= events ================= */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]'); if (!el) return;
+  const a = el.dataset.a;
+  if (a === 'm-ok' || a === 'm-cancel') {
+    $('#modal').classList.remove('on');
+    const cb = modalCb; modalCb = null;
+    if (a === 'm-ok' && cb) cb();
+    return;
+  }
+  if (screen === 'setup') setupAction(a, el);
+  else if (screen === 'score' && drill) { keepAwake(); scoreAction(a, el); }
+  else if (screen === 'summary' && drill) summaryAction(a);
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.classList.contains('tname')) { setup.teams[+t.dataset.i].name = t.value; saveSetup(); }
+  if (t.id === 'rosterIn') rosterDraft = t.value;
+  if (t.id === 'presetIn') presetDraft = t.value;
+});
+document.addEventListener('change', e => { if (e.target.classList.contains('tname')) renderSetup(); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const t = e.target;
+  if (t.id === 'rosterIn') { e.preventDefault(); setupAction('roster-add', t); setTimeout(() => { const i = $('#rosterIn'); if (i) i.focus(); }, 0); }
+  else if (t.id === 'presetIn') { e.preventDefault(); setupAction('preset-save', t); }
+  else if (t.classList.contains('tname')) t.blur();
+});
+// block pinch / double-tap zoom (iOS ignores user-scalable in some contexts)
+['gesturestart', 'gesturechange', 'gestureend'].forEach(ev => document.addEventListener(ev, e => e.preventDefault()));
+document.addEventListener('dblclick', e => e.preventDefault());
+let lastTouch = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - lastTouch < 300 && !e.target.closest('input')) e.preventDefault();
+  lastTouch = now;
+}, {passive: false});
+
+/* ================= clock loop ================= */
+setInterval(() => {
+  if (!drill) return;
+  if (drill.running && drill.endAt - Date.now() <= 0) {
+    drill.running = false; drill.ms = 0; drill.endAt = null; saveDrill();
+  }
+  updateClock();
+}, 100);
+
+/* ================= keep screen awake ================= */
+let wakeLock = null;
+async function keepAwake() {
+  try {
+    if ('wakeLock' in navigator && !wakeLock && document.visibilityState === 'visible') {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    }
+  } catch (e) { /* not supported / denied */ }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') { keepAwake(); if (screen === 'score') updateClock(true); }
+});
+
+/* ================= boot ================= */
+if (drill && !drill.ended) show('score');
+else if (drill && drill.ended) show('summary');
+else show('setup');
+
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+})();
+</script>
+</body>
+</html>
