@@ -13,7 +13,7 @@ icons/                 app icons
 ## Host it free on GitHub Pages (about 5 minutes)
 
 1. Create a new **public** repo on github.com, e.g. `drill-scoreboard`.
-2. Upload every file in this folder, keeping the `icons/` folder (Add file → Upload files → drag them in → Commit).
+2. Upload every file in this folder, keeping the `icons/` folder (the offline cache breaks if the icons sit at the top level) (Add file → Upload files → drag them in → Commit).
 3. In the repo, open **Settings → Pages**. Under *Build and deployment*, set Source = **Deploy from a branch**, Branch = **main**, folder = **/ (root)**, then Save.
 4. Wait a minute or two. Your app is at `https://<your-username>.github.io/drill-scoreboard/`.
 

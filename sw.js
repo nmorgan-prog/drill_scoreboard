@@ -1,5 +1,5 @@
 // Bump VERSION whenever you change any file, so iPads pick up the new copy.
-const VERSION = 'drill-scoreboard-v1';
+const VERSION = 'drill-scoreboard-v2';
 const ASSETS = [
   './',
   './index.html',
